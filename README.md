@@ -78,6 +78,6 @@ ok  github.com/razashariff/agentpass-go  coverage: 84.0% of statements
 
 ## License
 
-Business Source License 1.1 (BSL-1.1). See LICENSE file.
+Apache License 2.0. See LICENSE file.
 
-(c) 2026 CyberSecAI Ltd. All rights reserved.
+(c) 2026 CyberSecAI Ltd.
