@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/razashariff/agentpass-go"
-	"github.com/razashariff/agentpass-go/internal/testca"
+	"github.com/razashariff/agentpass-go/testca"
 )
 
 // fixedTime is a helper that returns a constant time source for
