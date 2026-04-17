@@ -48,10 +48,20 @@ func WithTime(now TimeSource) VerifyOption {
 }
 
 // WithMinTrust rejects agents whose trust level is below level.
-// Callers typically set this to 2 in production to reject
-// unverified (L0) and developer-sandbox (L1) agents.
+// Level must be in the range 0-4; values outside this range are
+// clamped to the nearest bound. Callers typically set this to 2
+// in production to reject unverified (L0) and developer-sandbox
+// (L1) agents.
 func WithMinTrust(level int) VerifyOption {
-	return func(c *verifyConfig) { c.minTrust = level }
+	return func(c *verifyConfig) {
+		if level < 0 {
+			level = 0
+		}
+		if level > 4 {
+			level = 4
+		}
+		c.minTrust = level
+	}
 }
 
 // WithRequiredScopes rejects agents that lack any of the listed
@@ -63,6 +73,13 @@ func WithRequiredScopes(scopes ...string) VerifyOption {
 		c.requireScopes = append(c.requireScopes, scopes...)
 	}
 }
+
+// maxPEMBytes is the upper bound on the raw PEM input accepted by
+// Verify and ParseCertificatePEM. A well-formed agent certificate
+// PEM is under 2 KB; 64 KB gives ample room for large keys or
+// additional metadata without exposing the verifier to gigabyte
+// payloads from an adversarial caller.
+const maxPEMBytes = 64 * 1024
 
 // Verify parses a PEM-encoded agent certificate, confirms that it
 // chains to a certificate in pool, confirms it is within its
@@ -76,6 +93,9 @@ func WithRequiredScopes(scopes ...string) VerifyOption {
 // errors.go wrapped with additional context using fmt.Errorf %w,
 // so callers can use errors.Is to classify failures.
 func Verify(pemBytes []byte, pool *CertPool, opts ...VerifyOption) (*Verified, error) {
+	if len(pemBytes) > maxPEMBytes {
+		return nil, fmt.Errorf("%w: input exceeds %d byte limit", ErrInvalidPEM, maxPEMBytes)
+	}
 	cfg := &verifyConfig{now: Now}
 	for _, opt := range opts {
 		if opt != nil {
@@ -134,6 +154,9 @@ func Verify(pemBytes []byte, pool *CertPool, opts ...VerifyOption) (*Verified, e
 // ParseCertificatePEM is exposed primarily for tooling and tests;
 // it is not the expected entry point for production code.
 func ParseCertificatePEM(pemBytes []byte) (*Agent, error) {
+	if len(pemBytes) > maxPEMBytes {
+		return nil, fmt.Errorf("%w: input exceeds %d byte limit", ErrInvalidPEM, maxPEMBytes)
+	}
 	block, _ := pem.Decode(pemBytes)
 	if block == nil || block.Type != "CERTIFICATE" {
 		return nil, ErrInvalidPEM
